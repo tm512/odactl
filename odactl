@@ -13,10 +13,11 @@ odactl_root="."
 # set DOOMWADPATH here if it isn't already set
 # export DOOMWADPATH=...
 
+cfgpath="$odactl_root/cfgs"
 logpath="$odactl_root/logs"
 pidpath="$odactl_root/pid"
 
-mkdir -p $logpath $pidpath
+mkdir -p $cfgpath $logpath $pidpath
 
 # functions
 
