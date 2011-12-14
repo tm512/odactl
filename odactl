@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+
+###################################
+#                                 #
+# odactl - Odamex server launcher #
+#    [c] 2011 - tm512             #
+#                                 #
+###################################
+
+# location of odactl...
+odactl_root="."
+
+# set DOOMWADPATH here if it isn't already set
+# export DOOMWADPATH=...
+
+logpath="$odactl_root/logs"
+pidpath="$odactl_root/pid"
+
+mkdir -p $logpath $pidpath
+
+# functions
+
+startsrv ()
+{
+	if [ -e $pidpath/$1.pid ]
+	then
+		echo "$1: pidfile exists"
+		return
+	fi
+
+	if [ ! -e $cfgpath/$1.cfg ]
+	then
+		echo "$1: config not found"
+		return
+	fi
+
+	echo -n "Starting $1...      "
+	if [[ $2 == "screen" ]]
+	then
+		screen -S "oda_$1" odasrv +logfile $logpath/$1.log +exec $cfgpath/$1.cfg
+	else
+		odasrv -fork $pidpath/$1.pid +logfile $logpath/$1.log +exec $cfgpath/$1.cfg > /dev/null 2>&1 &
+	fi
+
+	echo "done."
+}
+
+stopsrv ()
+{
+	if [ ! -e $pidpath/$1.pid ]
+	then
+		echo "$1: pidfile not found"
+		return
+	fi
+
+	echo -n "Stopping $1...      "
+
+	if [[ $2 == "kill" ]]
+	then
+		kill -9 $(cat $pidpath/$1.pid) > /dev/null 2>&1
+	else
+		kill $(cat $pidpath/$1.pid) > /dev/null 2>&1
+	fi
+
+	rm -f $pidpath/$1.pid
+	echo "done."
+}
+
+# time for the fun stuff
+
+if [ -z $1 ]
+then
+	echo "usage: odactl [action] [server]"
+	echo "actions: start, screen, stop, kill, restart"
+	echo "kill passes -9 while stopping a server. Forces stop."
+	echo "screen runs the specified server inside of a screen session. Does not create pidfile."
+fi
+
+case $1 in
+	start)
+		if [ -n "$2" ]
+		then
+			startsrv "$2"
+		else
+			grep -e "^[^#]" servers.cfg | while read srv
+			do
+				startsrv "$srv"
+			done
+		fi
+		;;
+	screen)
+		if [ -n "$2" ]
+		then
+			startsrv "$2" "screen"
+		else
+			grep -e "^[^#]" servers.cfg | while read srv
+			do
+				startsrv "$srv" "screen"
+			done
+		fi
+		;;
+	stop)
+		if [ -n "$2" ]
+		then
+			stopsrv "$2"
+		else
+			grep -e "^[^#]" servers.cfg | while read srv
+			do
+				stopsrv "$srv"
+			done
+		fi
+		;;
+	kill)
+		if [ -n "$2" ]
+		then
+			stopsrv "$2" "kill"
+		else
+			grep -e "^[^#]" servers.cfg | while read srv
+			do
+				stopsrv "$srv" "kill"
+			done
+		fi
+		;;
+	restart)
+		if [ -n "$2" ]
+		then
+			stopsrv "$2"
+			startsrv "$2"
+		else
+			grep -e "^[^#]" servers.cfg | while read srv
+			do
+				stopsrv "$srv"
+				startsrv "$srv"
+			done
+		fi
+		;;
+esac
